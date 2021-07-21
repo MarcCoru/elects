@@ -100,10 +100,10 @@ def main(args):
                                  f"accuracy {accuracy:.2f}, earliness {earliness:.2f}. "
                                  f"classification loss {classification_loss:.2f}, earliness reward {earliness_reward:.2f}")
 
-            print(f"saving model to {args.snapshot}")
-            os.makedirs(os.path.dirname(args.snapshot), exist_ok=True)
-            torch.save(model.state_dict(), args.snapshot)
-            df.to_csv(args.snapshot + ".csv")
+    print(f"saving model to {args.snapshot}")
+    os.makedirs(os.path.dirname(args.snapshot), exist_ok=True)
+    torch.save(model.state_dict(), args.snapshot)
+    df.to_csv(args.snapshot + ".csv")
 
 
 def train_epoch(model, dataloader, optimizer, criterion, device):

@@ -8,6 +8,13 @@ conda activate elects
 pip install -r requirements.txt
 ```
 
+## Getting Started:
+
+Test model predictions on the evaluation set with Jupyter
+Notebook provided in `elects.ipynb`
+
+<img height="200px" src="./png/elects_notebook.png">
+
 ## Run Training Loop
 
 ### Monitor training visally (optional)
@@ -22,6 +29,8 @@ You can navigate to http://localhost:8097
 ```
 and navigate to [http://localhost:8097/](http://localhost:8097/) in the browser of your choice.
 
+<img height="200px" src="./png/visdom.png">
+
 ### Start training loop
 
 To start the training loop run
@@ -32,7 +41,6 @@ epoch 100: trainloss 1.70, testloss 1.97, accuracy 0.87, earliness 0.48. classif
 ```
 The BavarianCrops dataset is automatically downloaded.
 Additional options (e.g., `--alpha`, `--epsilon`, `--batchsize`) are available with `python train.py --help`.
-
 
 ## Docker
 
@@ -49,7 +57,6 @@ docker run elects python train.py
 
 ## Additional Notes
 
-* This repository is a distillation of the central loss early-reward function, 
+* This repository is a distillation of the central loss early-reward function,
   the LSTM-RNN model on the BavarianCrops dataset. This code is designed for easy reproducability and applicability.
-  The original (explorative) repository is available under https://github.com/rtavenar/elects. 
-  
+  The original (explorative) repository is available under https://github.com/rtavenar/elects.
