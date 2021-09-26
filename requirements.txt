@@ -8,3 +8,4 @@ visdom
 tqdm
 scikit-learn
 jupyter
+breizhcrops

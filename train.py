@@ -1,4 +1,4 @@
-from data import BavarianCrops
+from data import BavarianCrops, BreizhCrops
 from torch.utils.data import DataLoader
 from earlyrnn import EarlyRNN
 import torch
@@ -13,6 +13,7 @@ import os
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run ELECTS Early Classification training on the BavarianCrops dataset.')
+    parser.add_argument('--dataset', type=str, default="bavariancrops", choices=["bavariancrops","breizhcrops"], help="dataset")
     parser.add_argument('--alpha', type=float, default=0.5, help="trade-off parameter of earliness and accuracy (eq 6): "
                                                                  "1=full weight on accuracy; 0=full weight on earliness")
     parser.add_argument('--epsilon', type=float, default=10, help="additive smoothing parameter that helps the "
@@ -26,7 +27,7 @@ def parse_args():
                                                                 "they are zero-padded until this length; "
                                                                 "if samples are longer, they will be undersampled")
     parser.add_argument('--batchsize', type=int, default=256, help="number of samples per batch")
-    parser.add_argument('--dataroot', type=str, default=os.environ["HOME"], help="directory to download the "
+    parser.add_argument('--dataroot', type=str, default=os.path.join(os.environ["HOME"],"elects_data"), help="directory to download the "
                                                                                  "BavarianCrops dataset (400MB)."
                                                                                  "Defaults to home directory.")
     parser.add_argument('--snapshot', type=str, default="snapshots/model.pth",
@@ -36,14 +37,23 @@ def parse_args():
 
 def main(args):
 
+    if args.dataset == "bavariancrops":
+        dataset_class = BavarianCrops
+        dataroot = os.path.join(args.dataroot,"bavariancrops")
+        nclasses = 7
+    elif args.dataset == "breizhcrops":
+        dataset_class = BreizhCrops
+        dataroot = os.path.join(args.dataroot,"breizhcrops")
+        nclasses = 9
+
     traindataloader = DataLoader(
-        BavarianCrops(root=args.dataroot,partition="train", sequencelength=args.sequencelength),
+        dataset_class(root=dataroot,partition="train", sequencelength=args.sequencelength),
         batch_size=args.batchsize)
     testdataloader = DataLoader(
-        BavarianCrops(root=args.dataroot,partition="valid", sequencelength=args.sequencelength),
+        dataset_class(root=dataroot,partition="valid", sequencelength=args.sequencelength),
         batch_size=args.batchsize)
 
-    model = EarlyRNN().to(args.device)
+    model = EarlyRNN(nclasses=nclasses).to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     criterion = EarlyRewardLoss(alpha=args.alpha, epsilon=args.epsilon)
