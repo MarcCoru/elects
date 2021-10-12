@@ -1,4 +1,4 @@
-from data import BavarianCrops, BreizhCrops
+from data import BavarianCrops, BreizhCrops, SustainbenchCrops
 from torch.utils.data import DataLoader
 from earlyrnn import EarlyRNN
 import torch
@@ -13,7 +13,7 @@ import os
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run ELECTS Early Classification training on the BavarianCrops dataset.')
-    parser.add_argument('--dataset', type=str, default="bavariancrops", choices=["bavariancrops","breizhcrops"], help="dataset")
+    parser.add_argument('--dataset', type=str, default="bavariancrops", choices=["bavariancrops","breizhcrops", "ghana", "southsudan"], help="dataset")
     parser.add_argument('--alpha', type=float, default=0.5, help="trade-off parameter of earliness and accuracy (eq 6): "
                                                                  "1=full weight on accuracy; 0=full weight on earliness")
     parser.add_argument('--epsilon', type=float, default=10, help="additive smoothing parameter that helps the "
@@ -45,6 +45,12 @@ def main(args):
         dataset_class = BreizhCrops
         dataroot = os.path.join(args.dataroot,"breizhcrops")
         nclasses = 9
+    elif args.dataset == "ghana":
+        dataset_class = SustainbenchCrops
+        dataroot = args.dataroot
+        nclasses = 9
+    else:
+        raise ValueError(f"dataset {args.dataset} not recognized")
 
     traindataloader = DataLoader(
         dataset_class(root=dataroot,partition="train", sequencelength=args.sequencelength),

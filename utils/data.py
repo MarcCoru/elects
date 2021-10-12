@@ -4,6 +4,9 @@ import tarfile
 import os
 
 def download(link, file_name):
+    # make folder if not exists
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
+
     with open(file_name, "wb") as f:
         print("Downloading %s" % file_name)
         response = requests.get(link, stream=True)
