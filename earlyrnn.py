@@ -12,7 +12,7 @@ class EarlyRNN(nn.Module):
 
         # input transformations
         self.intransforms = nn.Sequential(
-            nn.LayerNorm(input_dim), # normalization over D-dimension. T-dimension is untoughted
+            nn.LayerNorm(input_dim), # normalization over D-dimension. T-dimension is untouched
             nn.Linear(input_dim, hidden_dims) # project to hidden_dims length
         )
 

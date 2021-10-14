@@ -38,28 +38,34 @@ def parse_args():
 def main(args):
 
     if args.dataset == "bavariancrops":
-        dataset_class = BavarianCrops
         dataroot = os.path.join(args.dataroot,"bavariancrops")
         nclasses = 7
+        input_dim = 13
+        train_ds = BavarianCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
+        test_ds = BavarianCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset == "breizhcrops":
-        dataset_class = BreizhCrops
         dataroot = os.path.join(args.dataroot,"breizhcrops")
         nclasses = 9
-    elif args.dataset == "ghana":
-        dataset_class = SustainbenchCrops
+        input_dim = 13
+        train_ds = BreizhCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
+        test_ds = BreizhCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
+    elif args.dataset in ["ghana", "southsudan"]:
         dataroot = args.dataroot
-        nclasses = 9
+        nclasses = 4
+        input_dim = 12
+        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country=args.dataset)
+        test_ds = SustainbenchCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength, country=args.dataset)
     else:
         raise ValueError(f"dataset {args.dataset} not recognized")
 
     traindataloader = DataLoader(
-        dataset_class(root=dataroot,partition="train", sequencelength=args.sequencelength),
+        train_ds,
         batch_size=args.batchsize)
     testdataloader = DataLoader(
-        dataset_class(root=dataroot,partition="valid", sequencelength=args.sequencelength),
+        test_ds,
         batch_size=args.batchsize)
 
-    model = EarlyRNN(nclasses=nclasses).to(args.device)
+    model = EarlyRNN(nclasses=nclasses, input_dim=input_dim).to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     criterion = EarlyRewardLoss(alpha=args.alpha, epsilon=args.epsilon)
@@ -133,10 +139,12 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
 
         loss = criterion(log_class_probabilities, probability_stopping, y_true)
 
-        loss.backward()
-        optimizer.step()
+        #assert not loss.isnan().any()
+        if not loss.isnan().any():
+            loss.backward()
+            optimizer.step()
 
-        losses.append(loss.cpu().detach().numpy())
+            losses.append(loss.cpu().detach().numpy())
 
     return np.stack(losses).mean()
 

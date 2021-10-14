@@ -54,8 +54,6 @@ def calculate_probability_making_decision(deltas):
     pts = list()
 
     initial_budget = torch.ones(batchsize, device=deltas.device)
-    #if torch.cuda.is_available():
-    #    initial_budget = initial_budget.cuda()
 
     budget = [initial_budget]
     for t in range(1, sequencelength):
@@ -65,7 +63,6 @@ def calculate_probability_making_decision(deltas):
 
     # last time
     pt = budget[-1]
-    budget.append(budget[-1] - pt)
     pts.append(pt)
 
     return torch.stack(pts, dim=-1)
