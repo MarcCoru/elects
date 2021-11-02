@@ -9,3 +9,4 @@ tqdm
 scikit-learn
 jupyter
 breizhcrops
+netCDF4
