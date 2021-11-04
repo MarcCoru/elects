@@ -1,4 +1,4 @@
-from data import BavarianCrops, BreizhCrops, SustainbenchCrops
+from data import BavarianCrops, BreizhCrops, SustainbenchCrops, ModisCDL
 from torch.utils.data import DataLoader
 from earlyrnn import EarlyRNN
 import torch
@@ -13,7 +13,7 @@ import os
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run ELECTS Early Classification training on the BavarianCrops dataset.')
-    parser.add_argument('--dataset', type=str, default="bavariancrops", choices=["bavariancrops","breizhcrops", "ghana", "southsudan"], help="dataset")
+    parser.add_argument('--dataset', type=str, default="bavariancrops", choices=["bavariancrops","breizhcrops", "ghana", "southsudan","unitedstates"], help="dataset")
     parser.add_argument('--alpha', type=float, default=0.5, help="trade-off parameter of earliness and accuracy (eq 6): "
                                                                  "1=full weight on accuracy; 0=full weight on earliness")
     parser.add_argument('--epsilon', type=float, default=10, help="additive smoothing parameter that helps the "
@@ -43,6 +43,14 @@ def main(args):
         input_dim = 13
         train_ds = BavarianCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BavarianCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
+    elif args.dataset == "unitedstates":
+        args.dataroot = "/data/modiscdl/"
+        args.sequencelength = 24
+        dataroot = args.dataroot
+        nclasses = 8
+        input_dim = 1
+        train_ds = ModisCDL(root=dataroot,partition="train", sequencelength=args.sequencelength)
+        test_ds = ModisCDL(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset == "breizhcrops":
         dataroot = os.path.join(args.dataroot,"breizhcrops")
         nclasses = 9

@@ -8,9 +8,11 @@ class BreizhCrops(Dataset):
     def __init__(self, partition="train", root="breizhcrops_dataset", sequencelength=70):
         assert partition in ["train", "valid", "eval"]
         if partition == "train":
-            self.ds = bzh.BreizhCrops("frh01", root=root, transform=lambda x: x, preload_ram=True)
+            frh01 = bzh.BreizhCrops("frh01", root=root, transform=lambda x: x, preload_ram=True)
+            frh02 = bzh.BreizhCrops("frh02", root=root, transform=lambda x: x, preload_ram=True)
+            self.ds = torch.utils.data.ConcatDataset([frh01, frh02])
         elif partition == "valid":
-            self.ds = bzh.BreizhCrops("frh02", root=root, transform=lambda x: x, preload_ram=True)
+            self.ds = bzh.BreizhCrops("frh03", root=root, transform=lambda x: x, preload_ram=True)
         elif partition == "test":
             self.ds = bzh.BreizhCrops("frh04", root=root, transform=lambda x: x, preload_ram=True)
 

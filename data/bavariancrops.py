@@ -28,7 +28,6 @@ class BavarianCrops(Dataset):
         self.ids = np.load(os.path.join(npy_folder, "ids.npy"), allow_pickle=True)
         self.X = np.load(os.path.join(npy_folder, "X.npy"), allow_pickle=True)
 
-
         self.sequencelength=sequencelength
 
     def __len__(self):
