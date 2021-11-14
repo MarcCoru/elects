@@ -5,16 +5,16 @@ import os
 import numpy as np
 
 class BreizhCrops(Dataset):
-    def __init__(self, partition="train", root="breizhcrops_dataset", sequencelength=70):
+    def __init__(self, partition="train", root="breizhcrops_dataset", sequencelength=70, year=2017):
         assert partition in ["train", "valid", "eval"]
         if partition == "train":
-            frh01 = bzh.BreizhCrops("frh01", root=root, transform=lambda x: x, preload_ram=True)
-            frh02 = bzh.BreizhCrops("frh02", root=root, transform=lambda x: x, preload_ram=True)
+            frh01 = bzh.BreizhCrops("frh01", root=root, transform=lambda x: x, preload_ram=True, year=year)
+            frh02 = bzh.BreizhCrops("frh02", root=root, transform=lambda x: x, preload_ram=True, year=year)
             self.ds = torch.utils.data.ConcatDataset([frh01, frh02])
         elif partition == "valid":
-            self.ds = bzh.BreizhCrops("frh03", root=root, transform=lambda x: x, preload_ram=True)
-        elif partition == "test":
-            self.ds = bzh.BreizhCrops("frh04", root=root, transform=lambda x: x, preload_ram=True)
+            self.ds = bzh.BreizhCrops("frh03", root=root, transform=lambda x: x, preload_ram=True, year=year)
+        elif partition == "eval":
+            self.ds = bzh.BreizhCrops("frh04", root=root, transform=lambda x: x, preload_ram=True, year=year)
 
         self.sequencelength = sequencelength
 

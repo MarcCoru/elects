@@ -54,6 +54,10 @@ docker run elects python train.py
 ```
 
 
+python train.py --dataroot /data/sustainbench --dataset ghana
+python train.py --dataroot /data/sustainbench --dataset southsudan
+
+--dataroot /data/sustainbench --dataset southsudan --epochs 500
 
 ## Additional Notes
 

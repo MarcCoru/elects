@@ -62,7 +62,7 @@ def main(args):
         nclasses = 4
         input_dim = 12
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country=args.dataset)
-        test_ds = SustainbenchCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength, country=args.dataset)
+        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country=args.dataset)
     else:
         raise ValueError(f"dataset {args.dataset} not recognized")
 
