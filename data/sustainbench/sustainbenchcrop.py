@@ -5,25 +5,30 @@ import os
 from tqdm import tqdm
 import numpy as np
 import torch
+from datetime import datetime
 
 # https://drive.google.com/file/d/1xwaAUL9tZ3LEUwC6ZGOELrshFCGkclM2/view?usp=sharing
 # [not adaoted] kenia https://drive.google.com/file/d/1434NDGzuqahT38ZsmmR2wrc7vxcjUi9F/view?usp=sharing
+# https://drive.google.com/drive/folders/1WhVObtFOzYFiXBsbbrEGy1DUtv7ov7wF
 
 class SustainbenchCrops(Dataset):
 
-    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana", train_test_frac=0.75):
-
+    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana", use_s2_only=True):
+        assert partition in ["train","val","test"]
         self.sequencelength = sequencelength
+        self.use_s2_only = use_s2_only
 
-        npy_folder = os.path.join(root, "npy")
+        subfolder = "s2only" if use_s2_only else "full"
+        npy_folder = os.path.join(root, "npy", subfolder)
         os.makedirs(npy_folder, exist_ok=True)
 
-        X_path = os.path.join(npy_folder, f"{country}_X.npy")
-        y_path = os.path.join(npy_folder, f"{country}_y.npy")
-
-        if not (os.path.exists(X_path) or os.path.exists(y_path)):
+        x_file = os.path.join(npy_folder, f"{country}_{partition}_X.npy")
+        if not os.path.exists(x_file):
+        #if True:
             # spatiotemporal dataset [D x H x W x T]
-            ds = CropTypeMappingDataset(root_dir=os.path.join(root, 'africa_crop_type_mapping_v1.0'), split_scheme=country, download=True)
+            print(f"expecting folder {os.path.join(root, 'africa_crop_type_mapping_v1.0')} to exist")
+            ds = CropTypeMappingDataset(root_dir=os.path.join(root, 'africa_crop_type_mapping_v1.0'),
+                                        split_scheme=country, download=True, partition=partition, resize_planet=True)
 
             self.X = []
             self.y = []
@@ -31,11 +36,15 @@ class SustainbenchCrops(Dataset):
             self.ndims = []
             self.ids = []
 
-            for idx, (X,y,meta) in enumerate(tqdm(ds, total=len(ds))):
+            print("preprocessing dataset (iterating through tiles taking s2 data and aggregating pixels of each field)")
+            for idx, data in enumerate(tqdm(ds, total=len(ds))):
+                X,y,meta = data
 
-                X_s2 = X["s2"]
-                # D x H x W x T -> H x W x D x T
-                X_s2 = X_s2.permute(1,2,0,3)
+                #X_s2 = X["s2"]
+
+                if X["s2"] is None:
+                    print(f"skipping idx {idx}")
+                    continue
 
                 classes = [c for c in y.long().unique() if c > 0]
 
@@ -43,15 +52,41 @@ class SustainbenchCrops(Dataset):
 
                     mask = y == c
 
-                    # H x W x D x T --average pixels-> D x T
-                    X = X_s2[mask].mean(0)
+                    # D x H x W x T --average pixels-> D x T
+                    xs2 = X["s2"][:, mask].mean(1)
 
                     # remove temporal padding
-                    X = X[:, meta["s2"] > 0]
+                    msk = meta["s2"] > 0
+                    xs2 = xs2[:, msk]
+                    doys_s2 = [datetime.strptime(str(d.numpy()),"%Y%m%d").timetuple().tm_yday for d in meta["s2"][msk]]
 
-                    ndims, sequencelength = X.shape
+                    if not self.use_s2_only:
+                        xs1 = X["s1"][:, mask].mean(1)
+                        msk = meta["s1"] > 0
+                        xs1 = xs1[:, msk]
+                        doys_s1 = [datetime.strptime(str(d.numpy()),"%Y%m%d").timetuple().tm_yday for d in meta["s1"][msk]]
 
-                    self.X.append(X.numpy())
+                        xplanet = X["planet"][:, mask].mean(1)
+                        xplanet = xplanet[:4] # only take BGR-NIR <- other bands have NANS
+
+                        msk = meta["planet"] > 0
+                        xplanet = xplanet[:, msk]
+                        doys_planet = [datetime.strptime(str(d.numpy()), "%Y%m%d").timetuple().tm_yday for d in meta["planet"][msk]]
+
+                        t = np.linspace(0,364,365)
+
+                        # interpolate
+                        xs2 = np.stack([np.interp(t, doys_s2, x) for x in xs2])
+                        xs1 = np.stack([np.interp(t, doys_s1, x) for x in xs1])
+                        xplanet = np.stack([np.interp(t, doys_planet, x) for x in xplanet])
+
+                        X_timeseries = np.vstack([xs2, xs1, xplanet])
+                    else:
+                        X_timeseries = xs2
+
+                    ndims, sequencelength = X_timeseries.shape
+
+                    self.X.append(X_timeseries)
                     self.y.append(int(c))
                     self.ndims.append(ndims)
                     self.sequencelengths.append(sequencelength)
@@ -65,36 +100,28 @@ class SustainbenchCrops(Dataset):
             # stack to N x T x D
             self.X = np.stack(X_).transpose(0,2,1)
 
-            np.save(os.path.join(npy_folder, f"{country}_X.npy"), self.X)
-            np.save(os.path.join(npy_folder, f"{country}_y.npy"), np.array(self.y))
-            np.save(os.path.join(npy_folder, f"{country}_sequencelengths.npy"), np.array(self.sequencelengths))
-            np.save(os.path.join(npy_folder, f"{country}_ndims.npy"), np.array(self.ndims))
-            np.save(os.path.join(npy_folder, f"{country}_ids.npy"), np.array(self.ids))
+            self.sequencelengths = np.array(self.sequencelengths)
+            self.ndims = np.array(self.ndims)
+            self.ids = np.array(self.ids)
+
+            self.y = np.array(self.y)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_X.npy"), self.X)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_y.npy"), self.y)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_sequencelengths.npy"), self.sequencelengths)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_ndims.npy"), self.ndims)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_ids.npy"), self.ids)
 
         else:
-            self.X = np.load(os.path.join(npy_folder, f"{country}_X.npy"), allow_pickle=True)
-            self.y = np.load(os.path.join(npy_folder, f"{country}_y.npy"), allow_pickle=True)
-            self.ids = np.load(os.path.join(npy_folder, f"{country}_ids.npy"), allow_pickle=True)
-            self.sequencelengths = np.load(os.path.join(npy_folder, f"{country}_sequencelengths.npy"), allow_pickle=True)
-            self.ndims = np.load(os.path.join(npy_folder, f"{country}_ndims.npy"), allow_pickle=True)
+            self.X = np.load(os.path.join(npy_folder, f"{country}_{partition}_X.npy"), allow_pickle=True)
+            self.y = np.load(os.path.join(npy_folder, f"{country}_{partition}_y.npy"), allow_pickle=True)
+            self.ids = np.load(os.path.join(npy_folder, f"{country}_{partition}_ids.npy"), allow_pickle=True)
+            self.sequencelengths = np.load(os.path.join(npy_folder, f"{country}_{partition}_sequencelengths.npy"), allow_pickle=True)
+            self.ndims = np.load(os.path.join(npy_folder, f"{country}_{partition}_ndims.npy"), allow_pickle=True)
 
         self.y = self.y - 1
 
         # remove classes that are not in the official 4 classes...
         mask = [y in CM_LABELS[country] for y in self.y]
-        self.X = self.X[mask]
-        self.y = self.y[mask]
-        self.sequencelengths = self.sequencelengths[mask]
-        self.ndims = self.ndims[mask]
-
-        # split train/test
-        is_train = np.random.rand(self.X.shape[0]) < train_test_frac
-
-        if partition == "train":
-            mask = is_train
-        else:
-            mask = ~is_train
-
         self.X = self.X[mask]
         self.y = self.y[mask]
         self.sequencelengths = self.sequencelengths[mask]

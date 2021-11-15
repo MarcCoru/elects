@@ -99,13 +99,15 @@ class CropTypeMappingDataset(Dataset):
             'compressed_size': None}}
 
     def __init__(self, version=None, root_dir='data', download=False, split_scheme='official', 
-                 resize_planet=False, calculate_bands=True, normalize=True):
+                 resize_planet=False, calculate_bands=True, normalize=True, partition="train"):
         """
         Args:
             resize_planet: True if Planet imagery will be resized to 64x64
             calculate_bands: True if aditional bands (NDVI and GCVI) will be calculated on the fly and appended
             normalize: True if bands (excluding NDVI and GCVI) wll be normalized
         """
+        assert partition in ["train", "val", "test"]
+
         self._resize_planet = resize_planet
         self._calculate_bands = calculate_bands
         self._normalize = normalize
@@ -127,7 +129,7 @@ class CropTypeMappingDataset(Dataset):
             
         split_df = pd.read_csv(os.path.join(self.data_dir, self._country, 'list_eval_partition.csv'))
         self._split_array = self.split_array = split_df['partition'].values
-        
+
         # y_array stores idx ids corresponding to location. Actual y labels are
         # tensors that are loaded separately.
         self._y_array = self.y_array = torch.from_numpy(split_df['id'].values)
@@ -135,6 +137,18 @@ class CropTypeMappingDataset(Dataset):
         
         self._metadata_fields = self.metadata_fields = ['y']
         self._metadata_array = self.metadata_array = torch.from_numpy(split_df['id'].values)
+
+        if partition == "train":
+            select_mask = split_df.partition == 0
+        elif partition == "val":
+            select_mask = split_df.partition == 1
+        elif partition == "test":
+            select_mask = split_df.partition == 2
+        else:
+            raise ValueError(f"wrong partition {partition}. must be in train/val/test")
+
+        print(f"partition {partition}. selecting {select_mask.sum()}/{select_mask.shape[0]} tiles")
+        self._y_array = self.y_array = self.y_array[select_mask]
 
         super().__init__()
 
@@ -162,7 +176,9 @@ class CropTypeMappingDataset(Dataset):
         try:
             images = np.load(os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz'))
         except zipfile.BadZipFile:
-            print(os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz'))
+            bad_filepath = os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz')
+            print(f"bad zip at {bad_filepath}")
+            return  {'s1': None, 's2': None, 'planet': None}
         s1 = images['s1']
         s2 = images['s2']
         planet = images['planet']
