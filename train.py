@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--epsilon', type=float, default=10, help="additive smoothing parameter that helps the "
                                                                   "model recover from too early classificaitons (eq 7)")
     parser.add_argument('--learning-rate', type=float, default=1e-3, help="Optimizer learning rate")
+    parser.add_argument('--patience', type=int, default=30, help="Early stopping patience")
     parser.add_argument('--device', type=str, default="cuda" if torch.cuda.is_available() else "cpu",
                         choices=["cuda","cpu"], help="'cuda' (GPU) or 'cpu' device to run the code. "
                                                      "defaults to 'cuda' if GPU is available, otherwise 'cpu'")
@@ -57,12 +58,22 @@ def main(args):
         input_dim = 13
         train_ds = BreizhCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BreizhCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
-    elif args.dataset in ["ghana", "southsudan"]:
+    elif args.dataset in ["ghana"]:
         dataroot = args.dataroot
         nclasses = 4
-        input_dim = 12
-        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country=args.dataset)
-        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country=args.dataset)
+        input_dim = 12 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        args.epochs = 200
+        args.sequencelength = 365
+        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana")
+        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="ghana")
+    elif args.dataset in ["southsudan"]:
+        dataroot = args.dataroot
+        nclasses = 4
+        args.sequencelength = 365
+        input_dim = 19 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        args.epochs = 500
+        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="southsudan")
+        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="southsudan")
     else:
         raise ValueError(f"dataset {args.dataset} not recognized")
 
@@ -80,6 +91,7 @@ def main(args):
 
     visdom_logger = VisdomLogger()
 
+    not_improved = 0
     with tqdm(range(1, args.epochs + 1)) as pbar:
         train_stats = []
         for epoch in pbar:
@@ -126,15 +138,27 @@ def main(args):
             visdom_logger.plot_epochs(df[["accuracy", "earliness"]], name="accuracy, earliness")
             visdom_logger.plot_epochs(df[["classification_loss", "earliness_reward"]], name="loss components")
 
+
+            savemsg = ""
+            if len(df) > 2:
+                if testloss < df.testloss[:-1].values.min():
+                    savemsg = f"saving model to {args.snapshot}"
+                    os.makedirs(os.path.dirname(args.snapshot), exist_ok=True)
+                    torch.save(model.state_dict(), args.snapshot)
+                    df.to_csv(args.snapshot + ".csv")
+                    not_improved = 0 # reset early stopping counter
+                else:
+                    not_improved += 1 # increment early stopping counter
+                    savemsg = f"early stopping in {args.patience - not_improved} epochs."
+
             pbar.set_description(f"epoch {epoch}: trainloss {trainloss:.2f}, testloss {testloss:.2f}, "
-                                 f"accuracy {accuracy:.2f}, earliness {earliness:.2f}. "
-                                 f"classification loss {classification_loss:.2f}, earliness reward {earliness_reward:.2f}")
+                     f"accuracy {accuracy:.2f}, earliness {earliness:.2f}. "
+                     f"classification loss {classification_loss:.2f}, earliness reward {earliness_reward:.2f}. {savemsg}")
 
-    print(f"saving model to {args.snapshot}")
-    os.makedirs(os.path.dirname(args.snapshot), exist_ok=True)
-    torch.save(model.state_dict(), args.snapshot)
-    df.to_csv(args.snapshot + ".csv")
 
+            if not_improved > args.patience:
+                print(f"stopping training. testloss {testloss:.2f} did not improve in {args.patience} epochs.")
+                break
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
     losses = []
