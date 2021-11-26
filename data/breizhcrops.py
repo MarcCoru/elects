@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 class BreizhCrops(Dataset):
-    def __init__(self, partition="train", root="breizhcrops_dataset", sequencelength=70, year=2017):
+    def __init__(self, partition="train", root="breizhcrops_dataset", sequencelength=70, year=2017, return_id=False):
         assert partition in ["train", "valid", "eval"]
         if partition == "train":
             frh01 = BzhBreizhCrops("frh01", root=root, transform=lambda x: x, preload_ram=True, year=year)
@@ -16,6 +16,7 @@ class BreizhCrops(Dataset):
             self.ds = BzhBreizhCrops("frh04", root=root, transform=lambda x: x, preload_ram=True, year=year)
 
         self.sequencelength = sequencelength
+        self.return_id = return_id
 
     def __len__(self):
         return len(self.ds)
@@ -43,8 +44,11 @@ class BreizhCrops(Dataset):
 
         X = torch.from_numpy(X).type(torch.FloatTensor)
 
-
-        return X, y.repeat(self.sequencelength)
+        X,y  = X, y.repeat(self.sequencelength)
+        if self.return_id:
+            return X, y, id
+        else:
+            return X, y
 
 
 import os

@@ -8,11 +8,11 @@ import os
 import numpy as np
 
 URL = "https://elects.s3.eu-central-1.amazonaws.com/holl.tar.gz"
-CLASSES = ["meadow", "summar barley", "corn", "winter wheat", "winter barley", "clover", "winter triticale"]
+CLASSES = ["meadow", "summer barley", "corn", "winter wheat", "winter barley", "clover", "winter triticale"]
 
 class BavarianCrops(Dataset):
 
-    def __init__(self, partition, root=os.environ["HOME"], sequencelength=70):
+    def __init__(self, partition, root=os.environ["HOME"], sequencelength=70, return_ids = False):
         assert partition in ["train", "valid", "eval"]
         if not os.path.exists(os.path.join(root,"holl")):
             print(f"no dataset found in {root}/holl. downloading...")
@@ -27,6 +27,7 @@ class BavarianCrops(Dataset):
         self.sequencelengths = np.load(os.path.join(npy_folder, "sequencelengths.npy"), allow_pickle=True)
         self.ids = np.load(os.path.join(npy_folder, "ids.npy"), allow_pickle=True)
         self.X = np.load(os.path.join(npy_folder, "X.npy"), allow_pickle=True)
+        self.return_ids = return_ids
 
         self.sequencelength=sequencelength
 
@@ -56,4 +57,7 @@ class BavarianCrops(Dataset):
         X = torch.from_numpy(X).type(torch.FloatTensor)
         y = torch.from_numpy(y).type(torch.LongTensor)
 
-        return X, y
+        if self.return_ids:
+            return X, y, self.ids[idx]
+        else:
+            return X, y

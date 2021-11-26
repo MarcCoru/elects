@@ -61,7 +61,7 @@ def main(args):
     elif args.dataset in ["ghana"]:
         dataroot = args.dataroot
         nclasses = 4
-        input_dim = 12 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        input_dim = 10 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 200
         args.sequencelength = 365
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana")
@@ -69,8 +69,8 @@ def main(args):
     elif args.dataset in ["southsudan"]:
         dataroot = args.dataroot
         nclasses = 4
-        args.sequencelength = 365
-        input_dim = 19 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        args.sequencelength = 50
+        input_dim = 10 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 500
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="southsudan")
         test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="southsudan")
