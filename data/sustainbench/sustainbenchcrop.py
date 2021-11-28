@@ -35,6 +35,7 @@ class SustainbenchCrops(Dataset):
             self.sequencelengths = []
             self.ndims = []
             self.ids = []
+            self.doys = []
 
             print("preprocessing dataset (iterating through tiles taking s2 data and aggregating pixels of each field)")
             for idx, data in enumerate(tqdm(ds, total=len(ds))):
@@ -53,7 +54,11 @@ class SustainbenchCrops(Dataset):
                     mask = y == c
 
                     # D x H x W x T --average pixels-> D x T
-                    xs2 = X["s2"][:, mask].mean(1)
+                    # xs2 = X["s2"][:, mask].mean(1)
+                    xs2 = X["s2"][:, mask].permute(0,2,1)
+
+                    # remove last two bands as they contain NANs
+                    xs2 = xs2[:10]
 
                     # remove temporal padding
                     msk = meta["s2"] > 0
@@ -84,27 +89,30 @@ class SustainbenchCrops(Dataset):
                     else:
                         X_timeseries = xs2
 
-                    ndims, sequencelength = X_timeseries.shape
+                    ndims, sequencelength, npixel = X_timeseries.shape
 
+                    self.doys.append(doys_s2)
                     self.X.append(X_timeseries)
-                    self.y.append(int(c))
-                    self.ndims.append(ndims)
-                    self.sequencelengths.append(sequencelength)
-                    self.ids.append(idx)
+                    self.y.append([int(c)] * npixel)
+                    self.ndims.append([ndims] * npixel)
+                    self.sequencelengths.append([sequencelength] * npixel)
+                    self.ids.append([idx] * npixel)
 
+            self.sequencelengths = np.hstack(self.sequencelengths)
             T = max(self.sequencelengths)
             X_ = []
             for X in self.X:
                 npad = T - X.shape[1]
-                X_.append(np.pad(X, [(0, 0), (0, npad)], 'constant', constant_values=0))
+                X_.append(np.pad(X, [(0, 0), (0, npad), (0,0)], 'constant', constant_values=0))
             # stack to N x T x D
-            self.X = np.stack(X_).transpose(0,2,1)
+            # self.X = np.stack(X_).transpose(0, 2, 1)
+            self.X = np.dstack(X_).transpose(2,1,0)
 
-            self.sequencelengths = np.array(self.sequencelengths)
-            self.ndims = np.array(self.ndims)
-            self.ids = np.array(self.ids)
 
-            self.y = np.array(self.y)
+            self.ndims = np.hstack(self.ndims)
+            self.ids = np.hstack(self.ids)
+
+            self.y = np.hstack(self.y)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_X.npy"), self.X)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_y.npy"), self.y)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_sequencelengths.npy"), self.sequencelengths)
@@ -150,8 +158,8 @@ class SustainbenchCrops(Dataset):
         X = torch.from_numpy(X).type(torch.FloatTensor)
         y = torch.from_numpy(y).type(torch.LongTensor)
 
-        X = torch.nan_to_num(X)
-        X[X>1e20] = 0
+        # X = torch.nan_to_num(X)
+        # X[X>1e20] = 0
 
         assert not X.isnan().any()
 
