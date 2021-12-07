@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('--learning-rate', type=float, default=1e-3, help="Optimizer learning rate")
     parser.add_argument('--patience', type=int, default=30, help="Early stopping patience")
     parser.add_argument('--device', type=str, default="cuda" if torch.cuda.is_available() else "cpu",
-                        choices=["cuda","cpu"], help="'cuda' (GPU) or 'cpu' device to run the code. "
+                        choices=["cuda", "cpu"], help="'cuda' (GPU) or 'cpu' device to run the code. "
                                                      "defaults to 'cuda' if GPU is available, otherwise 'cpu'")
     parser.add_argument('--epochs', type=int, default=100, help="number of training epochs")
     parser.add_argument('--sequencelength', type=int, default=70, help="sequencelength of the time series. If samples are shorter, "
@@ -34,7 +34,12 @@ def parse_args():
     parser.add_argument('--snapshot', type=str, default="snapshots/model.pth",
                         help="pytorch state dict snapshot file")
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.patience < 0:
+        args.patience = None
+
+    return args
 
 def main(args):
 
@@ -61,7 +66,7 @@ def main(args):
     elif args.dataset in ["ghana"]:
         dataroot = args.dataroot
         nclasses = 4
-        input_dim = 10 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        input_dim = 12 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 200
         args.sequencelength = 365
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana")
@@ -69,8 +74,8 @@ def main(args):
     elif args.dataset in ["southsudan"]:
         dataroot = args.dataroot
         nclasses = 4
-        args.sequencelength = 50
-        input_dim = 10 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        args.sequencelength = 365
+        input_dim = 19 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 500
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="southsudan")
         test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="southsudan")
@@ -149,16 +154,19 @@ def main(args):
                     not_improved = 0 # reset early stopping counter
                 else:
                     not_improved += 1 # increment early stopping counter
-                    savemsg = f"early stopping in {args.patience - not_improved} epochs."
+                    if args.patience is not None:
+                        savemsg = f"early stopping in {args.patience - not_improved} epochs."
+                    else:
+                        savemsg = ""
 
             pbar.set_description(f"epoch {epoch}: trainloss {trainloss:.2f}, testloss {testloss:.2f}, "
                      f"accuracy {accuracy:.2f}, earliness {earliness:.2f}. "
                      f"classification loss {classification_loss:.2f}, earliness reward {earliness_reward:.2f}. {savemsg}")
 
-
-            if not_improved > args.patience:
-                print(f"stopping training. testloss {testloss:.2f} did not improve in {args.patience} epochs.")
-                break
+            if args.patience is not None:
+                if not_improved > args.patience:
+                    print(f"stopping training. testloss {testloss:.2f} did not improve in {args.patience} epochs.")
+                    break
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
     losses = []
