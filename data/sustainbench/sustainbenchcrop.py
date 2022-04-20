@@ -24,7 +24,6 @@ class SustainbenchCrops(Dataset):
 
         x_file = os.path.join(npy_folder, f"{country}_{partition}_X.npy")
         if not os.path.exists(x_file):
-        #if True:
             # spatiotemporal dataset [D x H x W x T]
             print(f"expecting folder {os.path.join(root, 'africa_crop_type_mapping_v1.0')} to exist")
             ds = CropTypeMappingDataset(root_dir=os.path.join(root, 'africa_crop_type_mapping_v1.0'),
@@ -57,8 +56,9 @@ class SustainbenchCrops(Dataset):
                     # xs2 = X["s2"][:, mask].mean(1)
                     xs2 = X["s2"][:, mask].permute(0,2,1)
 
-                    # remove last two bands as they contain NANs
-                    xs2 = xs2[:10]
+                    # last two bands can contain NANs
+                    xs2 = torch.nan_to_num(xs2)
+                    xs2 = torch.clamp(xs2, min=-3, max=3)
 
                     # remove temporal padding
                     msk = meta["s2"] > 0
