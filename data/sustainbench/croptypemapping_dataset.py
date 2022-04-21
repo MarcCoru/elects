@@ -173,12 +173,18 @@ class CropTypeMappingDataset(Dataset):
         Returns X for a given idx.
         """
         loc_id = f'{self.y_array[idx]:06d}'
-        try:
-            images = np.load(os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz'))
-        except zipfile.BadZipFile:
-            bad_filepath = os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz')
-            print(f"bad zip at {bad_filepath}")
-            return  {'s1': None, 's2': None, 'planet': None}
+        fname = os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz')
+        if os.path.exists(fname):
+            try:
+                images = np.load(fname)
+            except zipfile.BadZipFile:
+                bad_filepath = os.path.join(self.data_dir, self.country, 'npy', f'{self.country}_{loc_id}.npz')
+                print(f"bad zip at {bad_filepath}")
+                return  {'s1': None, 's2': None, 'planet': None}
+        else:
+            print(f"file not found at {fname}. skipping")
+            return {'s1': None, 's2': None, 'planet': None}
+
         s1 = images['s1']
         s2 = images['s2']
         planet = images['planet']

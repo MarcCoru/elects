@@ -66,26 +66,26 @@ class SustainbenchCrops(Dataset):
                     doys_s2 = [datetime.strptime(str(d.numpy()),"%Y%m%d").timetuple().tm_yday for d in meta["s2"][msk]]
 
                     if not self.use_s2_only:
-                        xs1 = X["s1"][:, mask].mean(1)
+                        xs1 = X["s1"][:, mask]#.mean(1)
                         msk = meta["s1"] > 0
-                        xs1 = xs1[:, msk]
+                        xs1 = xs1[:, :, msk].permute(0,2,1)
                         doys_s1 = [datetime.strptime(str(d.numpy()),"%Y%m%d").timetuple().tm_yday for d in meta["s1"][msk]]
 
-                        xplanet = X["planet"][:, mask].mean(1)
+                        xplanet = X["planet"][:, mask]#.mean(1)
                         xplanet = xplanet[:4] # only take BGR-NIR <- other bands have NANS
 
                         msk = meta["planet"] > 0
-                        xplanet = xplanet[:, msk]
+                        xplanet = xplanet[:, :, msk]
                         doys_planet = [datetime.strptime(str(d.numpy()), "%Y%m%d").timetuple().tm_yday for d in meta["planet"][msk]]
 
                         t = np.linspace(0,364,365)
 
                         # interpolate
-                        xs2 = np.stack([np.interp(t, doys_s2, x) for x in xs2])
-                        xs1 = np.stack([np.interp(t, doys_s1, x) for x in xs1])
-                        xplanet = np.stack([np.interp(t, doys_planet, x) for x in xplanet])
+                        xs2 = np.stack([np.stack([np.interp(t, doys_s2, x) for x in x_px]) for x_px in xs2.permute(0,2,1)])
+                        xs1 = np.stack([np.stack([np.interp(t, doys_s1, x) for x in x_px]) for x_px in xs1.permute(0,2,1)])
+                        xplanet = np.stack([np.stack([np.interp(t, doys_planet, x) for x in x_px]) for x_px in xplanet])
 
-                        X_timeseries = np.vstack([xs2, xs1, xplanet])
+                        X_timeseries = np.vstack([xs2, xs1, xplanet]).transpose(0,2,1) # make D x T x N_px
                     else:
                         X_timeseries = xs2
 
