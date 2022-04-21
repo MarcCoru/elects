@@ -66,13 +66,15 @@ def main(args):
         train_ds = BreizhCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BreizhCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset in ["ghana"]:
+        use_s2_only = False
+        average_pixel = True
         dataroot = args.dataroot
         nclasses = 4
-        input_dim = 12 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
+        input_dim = 12 if use_s2_only else 19  # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 200
         args.sequencelength = 365
-        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana")
-        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="ghana")
+        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel)
+        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel)
     elif args.dataset in ["southsudan"]:
         use_s2_only = False
         dataroot = args.dataroot

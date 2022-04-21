@@ -13,7 +13,7 @@ from datetime import datetime
 
 class SustainbenchCrops(Dataset):
 
-    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana", use_s2_only=True):
+    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana", use_s2_only=True, average_pixel=False):
         assert partition in ["train","val","test"]
         self.sequencelength = sequencelength
         self.use_s2_only = use_s2_only
@@ -56,7 +56,6 @@ class SustainbenchCrops(Dataset):
                     # xs2 = X["s2"][:, mask].mean(1)
                     xs2 = X["s2"][:, mask].permute(0,2,1)
 
-                    # last two bands can contain NANs
                     xs2 = torch.nan_to_num(xs2)
                     xs2 = torch.clamp(xs2, min=-3, max=3)
 
@@ -67,12 +66,20 @@ class SustainbenchCrops(Dataset):
 
                     if not self.use_s2_only:
                         xs1 = X["s1"][:, mask]#.mean(1)
+
+                        # last two bands can contain NANs
+                        xs1 = torch.nan_to_num(xs1)
+                        xs1 = torch.clamp(xs1, min=-3, max=3)
+
                         msk = meta["s1"] > 0
                         xs1 = xs1[:, :, msk].permute(0,2,1)
                         doys_s1 = [datetime.strptime(str(d.numpy()),"%Y%m%d").timetuple().tm_yday for d in meta["s1"][msk]]
 
                         xplanet = X["planet"][:, mask]#.mean(1)
                         xplanet = xplanet[:4] # only take BGR-NIR <- other bands have NANS
+
+                        xplanet = torch.nan_to_num(xplanet)
+                        xplanet = torch.clamp(xplanet, min=-3, max=3)
 
                         msk = meta["planet"] > 0
                         xplanet = xplanet[:, :, msk]
@@ -90,6 +97,10 @@ class SustainbenchCrops(Dataset):
                         X_timeseries = xs2
 
                     ndims, sequencelength, npixel = X_timeseries.shape
+
+                    if average_pixel:
+                        X_timeseries = X_timeseries.mean(-1)[:, :, None]
+                        npixel = 1
 
                     self.doys.append(doys_s2)
                     self.X.append(X_timeseries)
