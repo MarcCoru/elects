@@ -13,7 +13,8 @@ from datetime import datetime
 
 class SustainbenchCrops(Dataset):
 
-    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana", use_s2_only=True, average_pixel=False):
+    def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana",
+                 use_s2_only=True, average_pixel=False, max_n_pixels=None):
         assert partition in ["train","val","test"]
         self.sequencelength = sequencelength
         self.use_s2_only = use_s2_only
@@ -96,11 +97,14 @@ class SustainbenchCrops(Dataset):
                     else:
                         X_timeseries = xs2
 
-                    ndims, sequencelength, npixel = X_timeseries.shape
-
                     if average_pixel:
                         X_timeseries = X_timeseries.mean(-1)[:, :, None]
-                        npixel = 1
+
+                    if max_n_pixels is not None:
+                        idxs = np.random.choice(np.arange(X_timeseries.shape[-1]), size=max_n_pixels)
+                        X_timeseries = X_timeseries[:,:,idxs]
+
+                    ndims, sequencelength, npixel = X_timeseries.shape
 
                     self.doys.append(doys_s2)
                     self.X.append(X_timeseries)
@@ -118,7 +122,6 @@ class SustainbenchCrops(Dataset):
             # stack to N x T x D
             # self.X = np.stack(X_).transpose(0, 2, 1)
             self.X = np.dstack(X_).transpose(2,1,0)
-
 
             self.ndims = np.hstack(self.ndims)
             self.ids = np.hstack(self.ids)

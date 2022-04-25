@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--epsilon', type=float, default=10, help="additive smoothing parameter that helps the "
                                                                   "model recover from too early classificaitons (eq 7)")
     parser.add_argument('--learning-rate', type=float, default=1e-3, help="Optimizer learning rate")
+    parser.add_argument('--weight-decay', type=float, default=0, help="weight_decay")
     parser.add_argument('--patience', type=int, default=30, help="Early stopping patience")
     parser.add_argument('--device', type=str, default="cuda" if torch.cuda.is_available() else "cpu",
                         choices=["cuda", "cpu"], help="'cuda' (GPU) or 'cpu' device to run the code. "
@@ -66,15 +67,21 @@ def main(args):
         train_ds = BreizhCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BreizhCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset in ["ghana"]:
-        use_s2_only = False
+        use_s2_only = True
         average_pixel = True
+        max_n_pixels = 10
         dataroot = args.dataroot
         nclasses = 4
         input_dim = 12 if use_s2_only else 19  # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
-        args.epochs = 200
-        args.sequencelength = 365
-        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel)
-        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel)
+        args.epochs = 500
+        args.sequencelength = 30
+        train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength,
+                                     country="ghana",
+                                     use_s2_only=use_s2_only, average_pixel=average_pixel,
+                                     max_n_pixels=max_n_pixels)
+        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength,
+                                    country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel,
+                                    max_n_pixels=max_n_pixels)
     elif args.dataset in ["southsudan"]:
         use_s2_only = False
         dataroot = args.dataroot
@@ -96,7 +103,7 @@ def main(args):
 
     model = EarlyRNN(nclasses=nclasses, input_dim=input_dim).to(args.device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     criterion = EarlyRewardLoss(alpha=args.alpha, epsilon=args.epsilon)
 
     if args.resume and os.path.exists(args.snapshot):
