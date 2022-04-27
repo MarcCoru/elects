@@ -74,7 +74,7 @@ def main(args):
         nclasses = 4
         input_dim = 12 if use_s2_only else 19  # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 500
-        args.sequencelength = 30
+        args.sequencelength = 70
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength,
                                      country="ghana",
                                      use_s2_only=use_s2_only, average_pixel=average_pixel,
