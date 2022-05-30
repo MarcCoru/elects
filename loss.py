@@ -2,10 +2,10 @@ import torch
 from torch import nn
 
 class EarlyRewardLoss(nn.Module):
-    def __init__(self, alpha=0.5, epsilon=10):
+    def __init__(self, alpha=0.5, epsilon=10, weight=None):
         super(EarlyRewardLoss, self).__init__()
 
-        self.negative_log_likelihood = nn.NLLLoss(reduction="none")
+        self.negative_log_likelihood = nn.NLLLoss(reduction="none", weight=weight)
         self.alpha = alpha
         self.epsilon = epsilon
 

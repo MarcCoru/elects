@@ -14,13 +14,16 @@ from datetime import datetime
 class SustainbenchCrops(Dataset):
 
     def __init__(self, partition, root="/data/sustainbench/", sequencelength=70, country="ghana",
-                 use_s2_only=True, average_pixel=False, max_n_pixels=None):
+                 use_s2_only=True, average_pixel=False, max_n_pixels=None, return_id=False):
         assert partition in ["train","val","test"]
         self.sequencelength = sequencelength
         self.use_s2_only = use_s2_only
+        self.return_id = return_id
 
         subfolder = "s2only" if use_s2_only else "full"
+        subfolder += f"max_pix{max_n_pixels}" if not average_pixel else "average_pixel"
         npy_folder = os.path.join(root, "npy", subfolder)
+        print(f"caching to {npy_folder}")
         os.makedirs(npy_folder, exist_ok=True)
 
         x_file = os.path.join(npy_folder, f"{country}_{partition}_X.npy")
@@ -100,18 +103,18 @@ class SustainbenchCrops(Dataset):
                     if average_pixel:
                         X_timeseries = X_timeseries.mean(-1)[:, :, None]
 
-                    if max_n_pixels is not None:
+                    if (max_n_pixels is not None) and (not average_pixel):
                         idxs = np.random.choice(np.arange(X_timeseries.shape[-1]), size=max_n_pixels)
                         X_timeseries = X_timeseries[:,:,idxs]
 
                     ndims, sequencelength, npixel = X_timeseries.shape
 
-                    self.doys.append(doys_s2)
+                    self.doys.append([doys_s2] * npixel)
                     self.X.append(X_timeseries)
                     self.y.append([int(c)] * npixel)
                     self.ndims.append([ndims] * npixel)
                     self.sequencelengths.append([sequencelength] * npixel)
-                    self.ids.append([idx] * npixel)
+                    self.ids.append([f"{idx}-{c}"] * npixel)
 
             self.sequencelengths = np.hstack(self.sequencelengths)
             T = max(self.sequencelengths)
@@ -127,11 +130,15 @@ class SustainbenchCrops(Dataset):
             self.ids = np.hstack(self.ids)
 
             self.y = np.hstack(self.y)
+
+
+            self.doys_dict = {id: doys for id, doys in zip(self.ids, self.doys)}
             np.save(os.path.join(npy_folder, f"{country}_{partition}_X.npy"), self.X)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_y.npy"), self.y)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_sequencelengths.npy"), self.sequencelengths)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_ndims.npy"), self.ndims)
             np.save(os.path.join(npy_folder, f"{country}_{partition}_ids.npy"), self.ids)
+            np.save(os.path.join(npy_folder, f"{country}_{partition}_doys_dict.npy"), self.doys_dict)
 
         else:
             self.X = np.load(os.path.join(npy_folder, f"{country}_{partition}_X.npy"), allow_pickle=True)
@@ -139,6 +146,7 @@ class SustainbenchCrops(Dataset):
             self.ids = np.load(os.path.join(npy_folder, f"{country}_{partition}_ids.npy"), allow_pickle=True)
             self.sequencelengths = np.load(os.path.join(npy_folder, f"{country}_{partition}_sequencelengths.npy"), allow_pickle=True)
             self.ndims = np.load(os.path.join(npy_folder, f"{country}_{partition}_ndims.npy"), allow_pickle=True)
+            self.doys_dict = np.load(os.path.join(npy_folder, f"{country}_{partition}_doys_dict.npy"), allow_pickle=True).item()
 
         self.y = self.y - 1
 
@@ -177,4 +185,7 @@ class SustainbenchCrops(Dataset):
 
         assert not X.isnan().any()
 
-        return X, y.repeat(self.sequencelength)
+        if self.return_id:
+            return X, y.repeat(self.sequencelength), self.ids[idx]
+        else:
+            return X, y.repeat(self.sequencelength)

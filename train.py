@@ -50,6 +50,7 @@ def main(args):
         dataroot = os.path.join(args.dataroot,"bavariancrops")
         nclasses = 7
         input_dim = 13
+        class_weights = None
         train_ds = BavarianCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BavarianCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset == "unitedstates":
@@ -67,19 +68,25 @@ def main(args):
         train_ds = BreizhCrops(root=dataroot,partition="train", sequencelength=args.sequencelength)
         test_ds = BreizhCrops(root=dataroot,partition="valid", sequencelength=args.sequencelength)
     elif args.dataset in ["ghana"]:
-        use_s2_only = True
-        average_pixel = True
-        max_n_pixels = 10
+        use_s2_only = False
+        average_pixel = False
+        max_n_pixels = 50
         dataroot = args.dataroot
         nclasses = 4
         input_dim = 12 if use_s2_only else 19  # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 500
-        args.sequencelength = 70
+        args.sequencelength = 365
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength,
                                      country="ghana",
                                      use_s2_only=use_s2_only, average_pixel=average_pixel,
                                      max_n_pixels=max_n_pixels)
-        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength,
+        val_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength,
+                                    country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel,
+                                    max_n_pixels=max_n_pixels)
+
+        train_ds = torch.utils.data.ConcatDataset([train_ds, val_ds])
+
+        test_ds = SustainbenchCrops(root=dataroot,partition="test", sequencelength=args.sequencelength,
                                     country="ghana", use_s2_only=use_s2_only, average_pixel=average_pixel,
                                     max_n_pixels=max_n_pixels)
     elif args.dataset in ["southsudan"]:
@@ -90,7 +97,12 @@ def main(args):
         input_dim = 12 if use_s2_only else 19 # 12 sentinel 2 + 3 x sentinel 1 + 4 * planet
         args.epochs = 500
         train_ds = SustainbenchCrops(root=dataroot,partition="train", sequencelength=args.sequencelength, country="southsudan", use_s2_only=use_s2_only)
-        test_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="southsudan", use_s2_only=use_s2_only)
+        val_ds = SustainbenchCrops(root=dataroot,partition="val", sequencelength=args.sequencelength, country="southsudan", use_s2_only=use_s2_only)
+
+        train_ds = torch.utils.data.ConcatDataset([train_ds, val_ds])
+        test_ds = SustainbenchCrops(root=dataroot, partition="val", sequencelength=args.sequencelength,
+                                   country="southsudan", use_s2_only=use_s2_only)
+
     else:
         raise ValueError(f"dataset {args.dataset} not recognized")
 
@@ -103,7 +115,20 @@ def main(args):
 
     model = EarlyRNN(nclasses=nclasses, input_dim=input_dim).to(args.device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+
+    #optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+
+    # exclude decision head linear bias from weight decay
+    decay, no_decay = list(), list()
+    for name, param in model.named_parameters():
+        if name == "stopping_decision_head.projection.0.bias":
+            no_decay.append(param)
+        else:
+            decay.append(param)
+
+    optimizer = torch.optim.AdamW([{'params': no_decay, 'weight_decay': 0, "lr": args.learning_rate}, {'params': decay}],
+                                  lr=args.learning_rate, weight_decay=args.weight_decay)
+
     criterion = EarlyRewardLoss(alpha=args.alpha, epsilon=args.epsilon)
 
     if args.resume and os.path.exists(args.snapshot):
@@ -166,7 +191,6 @@ def main(args):
             visdom_logger.plot_epochs(df[["trainloss", "testloss"]], name="losses")
             visdom_logger.plot_epochs(df[["accuracy", "earliness"]], name="accuracy, earliness")
             visdom_logger.plot_epochs(df[["classification_loss", "earliness_reward"]], name="loss components")
-
 
             savemsg = ""
             if len(df) > 2:
