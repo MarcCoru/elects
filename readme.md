@@ -1,10 +1,17 @@
-# End-to-end Learning for Early Classification of Time Series (ELECTS)
+# ELECTS: End-to-End Learned Early Classification of Time Series for In-Season Crop Type Mapping
+
+<img width="100%" src="png/elects.png">
+
+please cite
+> Marc Rußwurm, Nicolas Courty, Remi Emonet, Sebastien Lefévre, Devis Tuia, and Romain Tavenard (2023). End-to-End Learned Early Classification of Time Series for In-Season Crop Type Mapping. To appear in ISPRS Journal of Photogrammetry and Remote Sensing.
+
+preprint available at https://arxiv.org/pdf/1901.10681.pdf
 
 ## Dependencies
 
 ```
-conda create -n elects
-conda activate elects
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -58,9 +65,3 @@ python train.py --dataroot /data/sustainbench --dataset ghana
 python train.py --dataroot /data/sustainbench --dataset southsudan
 
 --dataroot /data/sustainbench --dataset southsudan --epochs 500
-
-## Additional Notes
-
-* This repository is a distillation of the central loss early-reward function,
-  the LSTM-RNN model on the BavarianCrops dataset. This code is designed for easy reproducability and applicability.
-  The original (explorative) repository is available under https://github.com/rtavenar/elects.
