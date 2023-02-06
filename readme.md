@@ -3,9 +3,25 @@
 <img width="100%" src="png/elects.png">
 
 please cite
-> Marc Rußwurm, Nicolas Courty, Remi Emonet, Sebastien Lefévre, Devis Tuia, and Romain Tavenard (2023). End-to-End Learned Early Classification of Time Series for In-Season Crop Type Mapping. To appear in ISPRS Journal of Photogrammetry and Remote Sensing.
+> Marc Rußwurm, Nicolas Courty, Remi Emonet, Sebastien Lefévre, Devis Tuia, and Romain Tavenard (2023). End-to-End Learned Early Classification of Time Series for In-Season Crop Type Mapping. ISPRS Journal of Photogrammetry and Remote Sensing. 196. 445-456. https://doi.org/10.1016/j.isprsjprs.2022.12.016
 
-preprint available at https://arxiv.org/pdf/1901.10681.pdf
+```
+@article{russwurm2023:ELECTS,
+  title = {End-to-end learned early classification of time series for in-season crop type mapping},
+  journal = {ISPRS Journal of Photogrammetry and Remote Sensing},
+  volume = {196},
+  pages = {445-456},
+  year = {2023},
+  issn = {0924-2716},
+  doi = {https://doi.org/10.1016/j.isprsjprs.2022.12.016},
+  url = {https://www.sciencedirect.com/science/article/pii/S092427162200332X},
+  author = {Marc Rußwurm and Nicolas Courty and Rémi Emonet and Sébastien Lefèvre and Devis Tuia and Romain Tavenard},
+}
+```
+
+paper available at https://www.sciencedirect.com/science/article/pii/S092427162200332X
+
+[arxiv preprint here](https://arxiv.org/pdf/1901.10681.pdf)
 
 ## Dependencies
 
